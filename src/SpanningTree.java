@@ -3,16 +3,56 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 public class SpanningTree {
-    ArrayList<Connection> connections = new ArrayList<>();
-
+    private static ArrayList<Connection> connections = new ArrayList<Connection>();
+    private static ArrayList<Switch> switches = new ArrayList<Switch>();
     public SpanningTree(ArrayList<String> connections) {
         for (String x : connections) {
             this.connections.add(new Connection(x.split("-")[0], x.split("-")[1]));
         }
+    }
+    public  void traverse(){
+        Switch root = getLowestSwitch();
+        ArrayList<Object> adjacencies = new ArrayList<Object>();
+        for(int x : root.ports){
+            adjacencies.add(getSwitch(x),root.ports.indexOf(x));
+        }
+    }
+
+    private Switch getLowestSwitch(){
+        int switchNumber = Integer.MAX_VALUE;
+        for(Switch x: switches){
+            if(x.getSwitchNumber()<switchNumber){
+                switchNumber = x.getSwitchNumber();
+            }
+        }
+        for(Switch x: switches){
+            if(x.getSwitchNumber() == switchNumber){
+                return x;
+            }
+        }
+
+        return null;
+    }
+
+
+    private Switch getLowestSwitch(int number){
+        int switchNumber = Integer.MAX_VALUE;
+        for(Switch x: switches){
+            if(x.getSwitchNumber()<switchNumber && x.getSwitchNumber() > number){
+                switchNumber = x.getSwitchNumber();
+            }
+        }
+        for(Switch x: switches){
+            if(x.getSwitchNumber() == switchNumber){
+                return x;
+            }
+        }
+
+        return null;
     }
 
     public String toString() {
@@ -32,12 +72,17 @@ public class SpanningTree {
         return result;
     }
 
+    public static void reset(){
+        connections = new ArrayList<Connection>();
+        switches = new ArrayList<Switch>();
+    }
     public static void main(String[] args) {
         String file = args[0];
         try {
             BufferedReader br = new BufferedReader(new FileReader(file));
             String currentLine;
             while ((currentLine = br.readLine()) != null) {
+                reset();
                 ArrayList<String> input = new ArrayList<String>(Arrays.asList(currentLine.split(" ")));
                 Integer switches = Integer.parseInt(input.get(0));
                 input.remove(0);
@@ -102,16 +147,28 @@ public class SpanningTree {
             x.occupiedPorts++;
         }
 
+        public int getSwitchNumber(){
+            return this.switchNumber;
+        }
+
     }
 
+    public static Switch getSwitch(int number){
+        for(Switch x : switches){
+            if(x.getSwitchNumber()==number){
+                return x;
+            }
+        }
+        return new Switch(number);
+    }
 
     public static class Connection {
         Switch root;
         Switch child;
 
         public Connection(String first, String second) {
-            this.root = new Switch(Integer.parseInt(first));
-            this.child = new Switch(Integer.parseInt(second));
+            this.root = getSwitch(Integer.parseInt(first));
+            this.child = getSwitch(Integer.parseInt(second));
             this.root.addPort(this.child);
         }
 
