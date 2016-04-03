@@ -1,53 +1,129 @@
+/**
+ * Created by Perabjoth Singh Bajwa Spring 2016 CSCI 4311
+ *      ******
+ *    **********
+ *   *************
+ *  ***************
+ *  **   *****  ***
+ *  ***************
+ *   ****** ******
+ *    ***********
+ *     *********
+ *    ***********
+ *   *************
+ */
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 
 public class SpanningTree {
     private static ArrayList<Connection> connections = new ArrayList<Connection>();
     private static ArrayList<Switch> switches = new ArrayList<Switch>();
+
     public SpanningTree(ArrayList<String> connections) {
         for (String x : connections) {
             this.connections.add(new Connection(x.split("-")[0], x.split("-")[1]));
         }
     }
-    public  void traverse(){
-        Switch root = getLowestSwitch();
-        ArrayList<Object> adjacencies = new ArrayList<Object>();
-        for(int x : root.ports){
-            adjacencies.add(getSwitch(x),root.ports.indexOf(x));
+
+    private class Node {
+        int node, connection, distance;
+
+        public Node(int node, int connection, int distance) {
+            this.node = node;
+            this.connection = connection;
+            this.distance = distance;
+        }
+
+        public String toString(){
+            return "("+node+","+connection+","+distance+")";
         }
     }
 
-    private Switch getLowestSwitch(){
-        int switchNumber = Integer.MAX_VALUE;
-        for(Switch x: switches){
-            if(x.getSwitchNumber()<switchNumber){
-                switchNumber = x.getSwitchNumber();
-            }
+    private void traverse() {
+        LinkedList<Node> nodes = new LinkedList<Node>();
+        int rounds = 0;
+        for (Switch x : switches) {
+            nodes.add(new Node(x.getSwitchNumber(), x.getSwitchNumber(), 0));
         }
-        for(Switch x: switches){
-            if(x.getSwitchNumber() == switchNumber){
-                return x;
+        nodes = sortNodes(nodes);
+        while(checkNodes(nodes)) {
+            rounds++;
+            if(rounds>nodes.size()-1){
+                System.out.println("Can't connect all to root.");
+                break;
             }
-        }
+            Switch rootNode = getLowestSwitch();
+            for (Node x : nodes) {
+                if (x.connection != rootNode.getSwitchNumber()) {
+                    Switch nextSwitch = getLowestSwitchConnected(x.connection);
+                    x.connection = nextSwitch.getSwitchNumber();
+                    x.distance++;
+                }
+            }
 
-        return null;
+            System.out.print("Round "+rounds+": ");
+            for (Node x : nodes) {
+                System.out.print(x);
+            }
+            System.out.println();
+        }
     }
 
+    private LinkedList<Node> sortNodes(LinkedList<Node> nodes){
+        LinkedList<Node> sortedNodes = new LinkedList<Node>();
+        while(nodes.size()>0){
+            Node currentLowest = nodes.get(0);
+            for(Node x : nodes){
+                if(x.node < currentLowest.node){
+                    currentLowest = x;
+                }
+            }
+            nodes.remove(currentLowest);
+            sortedNodes.add(currentLowest);
+        }
+        return sortedNodes;
+    }
 
-    private Switch getLowestSwitch(int number){
-        int switchNumber = Integer.MAX_VALUE;
-        for(Switch x: switches){
-            if(x.getSwitchNumber()<switchNumber && x.getSwitchNumber() > number){
-                switchNumber = x.getSwitchNumber();
+    private boolean checkNodes(LinkedList<Node> nodes){
+        int rootSwitchNumber = getLowestSwitch().getSwitchNumber();
+        for(Node x : nodes){
+            if(x.connection!=rootSwitchNumber){
+                return true;
             }
         }
+        return false;
+    }
+
+    private Switch getLowestSwitch() {
+        int switchNumber = Integer.MAX_VALUE;
+        Switch lowestSwitch = null;
+        for (Switch x : switches) {
+            if (x.getSwitchNumber() < switchNumber) {
+                switchNumber = x.getSwitchNumber();
+                lowestSwitch = x;
+            }
+        }
+        return lowestSwitch;
+    }
+
+    private Switch getLowestSwitchConnected(int number) {
+        int switchNumber = Integer.MAX_VALUE;
+        Switch currentSwitch = null;
         for(Switch x: switches){
-            if(x.getSwitchNumber() == switchNumber){
+            if(x.getSwitchNumber() == number){
+                currentSwitch = x;
+            }
+        }
+
+        for (Integer x : currentSwitch.ports) {
+            if (x < switchNumber) {
+                switchNumber = x;
+            }
+        }
+        for (Switch x : switches) {
+            if (x.getSwitchNumber() == switchNumber) {
                 return x;
             }
         }
@@ -66,16 +142,17 @@ public class SpanningTree {
             if (i == 0) {
                 result += x;
             } else {
-                result += "," + x;
+                result += " " + x;
             }
         }
         return result;
     }
 
-    public static void reset(){
+    private static void reset() {
         connections = new ArrayList<Connection>();
         switches = new ArrayList<Switch>();
     }
+
     public static void main(String[] args) {
         String file = args[0];
         try {
@@ -86,14 +163,16 @@ public class SpanningTree {
                 ArrayList<String> input = new ArrayList<String>(Arrays.asList(currentLine.split(" ")));
                 Integer switches = Integer.parseInt(input.get(0));
                 input.remove(0);
-                System.out.print("Has " + switches + " switches. ");
+                System.out.print("Configuration: "+switches+" ");
+                SpanningTree spanningTree;
                 if (input.get(0).equals("R")) {
-                    System.out.print("Random.");
-                    System.out.println(new SpanningTree(RandomConnections(switches)).toString());
+                    spanningTree = new SpanningTree(RandomConnections(switches));
                 } else {
-                    System.out.print("Not random.");
-                    System.out.println(new SpanningTree(input));
+                    spanningTree = new SpanningTree(input);
                 }
+                System.out.println(spanningTree);
+                spanningTree.traverse();
+                System.out.println();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -101,7 +180,7 @@ public class SpanningTree {
     }
 
 
-    public static ArrayList<String> RandomConnections(int switches) {
+    private static ArrayList<String> RandomConnections(int switches) {
         ArrayList<String> connections = new ArrayList<String>();
         int counter = 0;
         Random random = new Random();
@@ -122,7 +201,7 @@ public class SpanningTree {
         return connections;
     }
 
-    public static boolean checkArrayFilled(int numbers[]) {
+    private static boolean checkArrayFilled(int numbers[]) {
         for (int x : numbers) {
             if (x == 0) {
                 return true;
@@ -131,7 +210,7 @@ public class SpanningTree {
         return false;
     }
 
-    public static class Switch {
+    private static class Switch {
         int switchNumber;
         int occupiedPorts = 0;
         ArrayList<Integer> ports = new ArrayList<>();
@@ -147,22 +226,24 @@ public class SpanningTree {
             x.occupiedPorts++;
         }
 
-        public int getSwitchNumber(){
+        public int getSwitchNumber() {
             return this.switchNumber;
         }
 
     }
 
-    public static Switch getSwitch(int number){
-        for(Switch x : switches){
-            if(x.getSwitchNumber()==number){
+    private static Switch getSwitch(int number) {
+        for (Switch x : switches) {
+            if (x.getSwitchNumber() == number) {
                 return x;
             }
         }
-        return new Switch(number);
+        Switch newSwitch =new Switch(number);
+        switches.add(newSwitch);
+        return newSwitch;
     }
 
-    public static class Connection {
+    private static class Connection {
         Switch root;
         Switch child;
 
