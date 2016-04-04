@@ -1,16 +1,16 @@
 /**
  * Created by Perabjoth Singh Bajwa Spring 2016 CSCI 4311
- *      ******
- *    **********
- *   *************
- *  ***************
- *  **   *****  ***
- *  ***************
- *   ****** ******
- *    ***********
- *     *********
- *    ***********
- *   *************
+ * ******
+ * **********
+ * *************
+ * ***************
+ * **   *****  ***
+ * ***************
+ * ****** ******
+ * ***********
+ * *********
+ * ***********
+ * *************
  */
 
 import java.io.BufferedReader;
@@ -28,16 +28,40 @@ public class SpanningTree {
     }
 
     private class Node {
-        int node, connection, distance;
+        int node, connection, distance, selfReferenceCount;
+        HashMap<Integer, LinkedList<Integer>> visitedNodes = new HashMap<Integer, LinkedList<Integer>>();
 
         public Node(int node, int connection, int distance) {
             this.node = node;
             this.connection = connection;
+            this.addVisitor(node, connection);
             this.distance = distance;
+            this.selfReferenceCount = 0;
         }
 
-        public String toString(){
-            return "("+node+","+connection+","+distance+")";
+        public void increment(int position) {
+            if (visitedNodes.get(position - 1) == null) {
+                distance++;
+            }
+        }
+
+        public void addVisitor(int position, int number) {
+            if (visitedNodes.get(position - 1) != null) {
+                visitedNodes.get(position - 1).add(number);
+            } else {
+                visitedNodes.put(position - 1, new LinkedList(Arrays.asList(number)));
+            }
+
+        }
+
+        public LinkedList<Integer> getVisitor(int number) {
+            if (visitedNodes.get(number - 1) != null)
+                return visitedNodes.get(number - 1);
+            else return new LinkedList<Integer>();
+        }
+
+        public String toString() {
+            return "(" + node + "," + connection + "," + distance + ")";
         }
     }
 
@@ -48,35 +72,42 @@ public class SpanningTree {
             nodes.add(new Node(x.getSwitchNumber(), x.getSwitchNumber(), 0));
         }
         nodes = sortNodes(nodes);
-        while(checkNodes(nodes)) {
+        Switch rootNode = getLowestSwitch();
+        System.out.println("Node " + rootNode.getSwitchNumber() + " elected root node.");
+
+        while (checkNodes(nodes)) {
             rounds++;
-            if(rounds>nodes.size()-1){
+            if (rounds > nodes.size() * nodes.size()) {
                 System.out.println("Can't connect all to root.");
                 break;
             }
-            Switch rootNode = getLowestSwitch();
+
             for (Node x : nodes) {
                 if (x.connection != rootNode.getSwitchNumber()) {
-                    Switch nextSwitch = getLowestSwitchConnected(x.connection);
-                    x.connection = nextSwitch.getSwitchNumber();
-                    x.distance++;
+                    Switch nextSwitch = getLowestSwitchConnected(x, x.connection, x.getVisitor(x.connection));
+                    if (nextSwitch != null) {
+                        int nextSwitchNumber = nextSwitch.getSwitchNumber();
+                        x.addVisitor(x.connection, nextSwitchNumber);
+                        x.connection = nextSwitchNumber;
+                        x.increment(nextSwitchNumber);
+                    }
                 }
             }
 
-            System.out.print("Round "+rounds+": ");
+            System.out.print("Round " + rounds + ": ");
             for (Node x : nodes) {
-                System.out.print(x);
+                System.out.print(x + " ");
             }
             System.out.println();
         }
     }
 
-    private LinkedList<Node> sortNodes(LinkedList<Node> nodes){
+    private LinkedList<Node> sortNodes(LinkedList<Node> nodes) {
         LinkedList<Node> sortedNodes = new LinkedList<Node>();
-        while(nodes.size()>0){
+        while (nodes.size() > 0) {
             Node currentLowest = nodes.get(0);
-            for(Node x : nodes){
-                if(x.node < currentLowest.node){
+            for (Node x : nodes) {
+                if (x.node < currentLowest.node) {
                     currentLowest = x;
                 }
             }
@@ -86,10 +117,10 @@ public class SpanningTree {
         return sortedNodes;
     }
 
-    private boolean checkNodes(LinkedList<Node> nodes){
+    private boolean checkNodes(LinkedList<Node> nodes) {
         int rootSwitchNumber = getLowestSwitch().getSwitchNumber();
-        for(Node x : nodes){
-            if(x.connection!=rootSwitchNumber){
+        for (Node x : nodes) {
+            if (x.connection != rootSwitchNumber) {
                 return true;
             }
         }
@@ -108,20 +139,25 @@ public class SpanningTree {
         return lowestSwitch;
     }
 
-    private Switch getLowestSwitchConnected(int number) {
+    private Switch getLowestSwitchConnected(Node node, int number, LinkedList<Integer> nodes) {
         int switchNumber = Integer.MAX_VALUE;
         Switch currentSwitch = null;
-        for(Switch x: switches){
-            if(x.getSwitchNumber() == number){
+        for (Switch x : switches) {
+            if (x.getSwitchNumber() == number) {
                 currentSwitch = x;
             }
         }
 
         for (Integer x : currentSwitch.ports) {
-            if (x < switchNumber) {
+            if (x < switchNumber && !nodes.contains(x) && (x != node.node || node.selfReferenceCount == 0)) {
                 switchNumber = x;
             }
         }
+
+        if (switchNumber == node.node) {
+            node.selfReferenceCount++;
+        }
+
         for (Switch x : switches) {
             if (x.getSwitchNumber() == switchNumber) {
                 return x;
@@ -163,7 +199,7 @@ public class SpanningTree {
                 ArrayList<String> input = new ArrayList<String>(Arrays.asList(currentLine.split(" ")));
                 Integer switches = Integer.parseInt(input.get(0));
                 input.remove(0);
-                System.out.print("Configuration: "+switches+" ");
+                System.out.print("Configuration: " + switches + " ");
                 SpanningTree spanningTree;
                 if (input.get(0).equals("R")) {
                     spanningTree = new SpanningTree(RandomConnections(switches));
@@ -238,7 +274,7 @@ public class SpanningTree {
                 return x;
             }
         }
-        Switch newSwitch =new Switch(number);
+        Switch newSwitch = new Switch(number);
         switches.add(newSwitch);
         return newSwitch;
     }
