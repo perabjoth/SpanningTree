@@ -28,36 +28,40 @@ public class SpanningTree {
     }
 
     private class Node {
-        int node, connection, distance, selfReferenceCount;
-        HashMap<Integer, LinkedList<Integer>> visitedNodes = new HashMap<Integer, LinkedList<Integer>>();
+        int node, connection, distance;
+        HashMap<Integer, LinkedList> visitedNodes = new HashMap<Integer, LinkedList>();
 
         public Node(int node, int connection, int distance) {
             this.node = node;
             this.connection = connection;
-            this.addVisitor(node, connection);
+            int[] mapping = new int[]{connection, 0};
+            this.addVisitor(node, mapping);
             this.distance = distance;
-            this.selfReferenceCount = 0;
         }
 
         public void increment(int position) {
-            if (visitedNodes.get(position - 1) == null) {
+            if (visitedNodes.get(position) == null) {
                 distance++;
             }
         }
 
-        public void addVisitor(int position, int number) {
-            if (visitedNodes.get(position - 1) != null) {
-                visitedNodes.get(position - 1).add(number);
+        public void addVisitor(int position, int[] numbers) {
+            this.increment(numbers[0]);
+            this.connection = numbers[0];
+            if (visitedNodes.get(position) != null) {
+                visitedNodes.get(position).add(numbers);
             } else {
-                visitedNodes.put(position - 1, new LinkedList(Arrays.asList(number)));
+                LinkedList linkedList = new LinkedList();
+                linkedList.add(numbers);
+                visitedNodes.put(position, linkedList);
             }
 
         }
 
-        public LinkedList<Integer> getVisitor(int number) {
-            if (visitedNodes.get(number - 1) != null)
-                return visitedNodes.get(number - 1);
-            else return new LinkedList<Integer>();
+        public LinkedList getVisitor(int number) {
+            if (visitedNodes.get(number) != null)
+                return visitedNodes.get(number);
+            else return new LinkedList();
         }
 
         public String toString() {
@@ -69,11 +73,21 @@ public class SpanningTree {
         LinkedList<Node> nodes = new LinkedList<Node>();
         int rounds = 0;
         for (Switch x : switches) {
-            nodes.add(new Node(x.getSwitchNumber(), x.getSwitchNumber(), 0));
+            Node node = new Node(x.getSwitchNumber(), x.getSwitchNumber(), 0);
+            nodes.add(node);
         }
         nodes = sortNodes(nodes);
         Switch rootNode = getLowestSwitch();
         System.out.println("Node " + rootNode.getSwitchNumber() + " elected root node.");
+        rounds++;
+
+        System.out.print("Round " + rounds + ": ");
+
+        for (Node x : nodes) {
+            System.out.print(x + " ");
+        }
+
+        System.out.println();
 
         while (checkNodes(nodes)) {
             rounds++;
@@ -84,13 +98,7 @@ public class SpanningTree {
 
             for (Node x : nodes) {
                 if (x.connection != rootNode.getSwitchNumber()) {
-                    Switch nextSwitch = getLowestSwitchConnected(x, x.connection, x.getVisitor(x.connection));
-                    if (nextSwitch != null) {
-                        int nextSwitchNumber = nextSwitch.getSwitchNumber();
-                        x.addVisitor(x.connection, nextSwitchNumber);
-                        x.connection = nextSwitchNumber;
-                        x.increment(nextSwitchNumber);
-                    }
+                    getLowestSwitchConnected(x, x.connection, x.getVisitor(x.connection));
                 }
             }
 
@@ -139,7 +147,7 @@ public class SpanningTree {
         return lowestSwitch;
     }
 
-    private Switch getLowestSwitchConnected(Node node, int number, LinkedList<Integer> nodes) {
+    private Switch getLowestSwitchConnected(Node node, int number, LinkedList nodes) {
         int switchNumber = Integer.MAX_VALUE;
         Switch currentSwitch = null;
         for (Switch x : switches) {
@@ -147,24 +155,36 @@ public class SpanningTree {
                 currentSwitch = x;
             }
         }
-
-        for (Integer x : currentSwitch.ports) {
-            if (x < switchNumber && !nodes.contains(x) && (x != node.node || node.selfReferenceCount == 0)) {
+        ArrayList<Integer> ports = currentSwitch.ports;
+        Integer portNumber = 0;
+        for (int i = 0; i < ports.size(); i++) {
+            Integer x = ports.get(i);
+            if (x < switchNumber && checkPortAndSwitch(nodes, i, x)) {
                 switchNumber = x;
+                portNumber = i;
             }
-        }
-
-        if (switchNumber == node.node) {
-            node.selfReferenceCount++;
         }
 
         for (Switch x : switches) {
             if (x.getSwitchNumber() == switchNumber) {
+                int nextSwitchNumber = x.getSwitchNumber();
+                int[] mapping = new int[]{nextSwitchNumber, portNumber};
+                node.addVisitor(number, mapping);
                 return x;
             }
         }
 
         return null;
+    }
+
+    private static boolean checkPortAndSwitch(LinkedList nodes, int portNumber, int switchNumber) {
+        for (int i = 0; i < nodes.size(); i++) {
+            int[] numbers = (int[]) nodes.get(i);
+            if (numbers[0] == switchNumber && numbers[1] == portNumber) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public String toString() {
