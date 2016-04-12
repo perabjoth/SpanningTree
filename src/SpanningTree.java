@@ -44,7 +44,7 @@ public class SpanningTree {
                 distance++;
             }
         }
-
+        @SuppressWarnings("unchecked")
         public void addVisitor(int position, int[] numbers) {
             this.increment(numbers[0]);
             this.connection = numbers[0];
